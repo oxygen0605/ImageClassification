@@ -1,0 +1,12 @@
+# exe ファイルは要らない
+*.exe
+
+# bin フォルダは要らない
+build/
+Logs/
+__pycache__/
+
+# GTAGS系は要らない
+GPATH
+GRTAGS
+GTAGS

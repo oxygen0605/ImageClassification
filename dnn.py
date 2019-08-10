@@ -8,25 +8,27 @@ from __future__ import print_function
 import numpy as np
 from keras.datasets import mnist
 from keras.models import Sequential
-from keras.layers import Dense, Activation
-from keras.optimizers import SGD
+from keras.layers import Dense, Dropout, Activation
+from keras.optimizers import SGD, RMSprop, Adam
 from keras.utils import np_utils
+from keras import regularizers
 from make_tensorboard import make_tensorboard
 
 # for reproducibility
 np.random.seed(1671)
 
 # Network and Training
-NB_EPOCH         = 10
+NB_EPOCH         = 20
 BATCH_SIZE       = 128
 VERBOSE          = 1
 NB_CLASSES       = 10
-OPTIMIZER        = SGD()
+OPTIMIZER        = Adam() # choose SGD(), RMSprop() or Adam()
 N_HIDDEN         = 128
 VALIDATION_SPLIT = 0.2
+DROPOUT = 0.3
 
 # data: shuffled and split between train and test sets
-(X_train, Y_train), (X_test, Y_test) = mnist.load_data()
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
 
 #X_train is 60000 rows of 28x28 values --> reshaped in 60000 x 784
 RESHAPED = 784
@@ -44,16 +46,24 @@ X_test  /= 255
 print(X_train.shape[0], 'train samples')
 print(X_train.shape[0], 'test samples')
 
-Y_train = np_utils.to_categorical(Y_train, NB_CLASSES)
-Y_test  = np_utils.to_categorical(Y_test,  NB_CLASSES)
+# convert category indexies to one hot vectors
+Y_train = np_utils.to_categorical(y_train, NB_CLASSES)
+Y_test  = np_utils.to_categorical(y_test,  NB_CLASSES)
 
 # 10 outputs
 # final stage is softmax
 model = Sequential()
-model.add(Dense(NB_CLASSES, input_shape=(RESHAPED, )))
+model.add(Dense(N_HIDDEN, input_shape=(RESHAPED,),
+				kernel_regularizer=regularizers.l2(0.01)))
+model.add(Activation('relu'))
+model.add(Dropout(DROPOUT))
+model.add(Dense(N_HIDDEN,kernel_regularizer=regularizers.l2(0.01)))
+model.add(Activation('relu'))
+model.add(Dropout(DROPOUT))
+model.add(Dense(NB_CLASSES))
 model.add(Activation('softmax'))
 
-model.summary()
+model.summary() # print a model architecture
 
 model.compile(loss='categorical_crossentropy',
 			  optimizer=OPTIMIZER,
