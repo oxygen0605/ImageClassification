@@ -71,7 +71,7 @@ class CIFAR10Dataset():
 
 class Trainer():
 	
-	def __init__(self, model, loss, optimizer, logdir = 'logdir_cifar10_cnn'):
+	def __init__(self, model, loss, optimizer, logdir = './Logs/logdir_cifar10_cnn'):
 		self._target = model
 		self._target.compile(
 				loss=loss, optimizer=optimizer, metrics=["accuracy"]
