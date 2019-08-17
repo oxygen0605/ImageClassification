@@ -145,10 +145,8 @@ class Evaluator():
 
 def learning_rate_schedule_for_Adam(epoch):
 	lr = 0.001
-	if(epoch >= 100):
-		lr/=5
-	if(epoch>=140):
-		lr/=2
+	if(epoch >=  5): lr = 0.0002 #100
+	if(epoch >= 15): lr = 0.0001 #140
 	return lr
 
 if __name__ == '__main__':
@@ -158,14 +156,16 @@ if __name__ == '__main__':
 	x_train, y_train, x_test, y_test = dataset.get_batch()
 	
 	# create model
-	#model = MyNeuralNetwork.cnn(dataset.image_shape, dataset.num_classes)
-	model = load_model('Models/model_file.hdf5')
+	#model = MyNeuralNetwork.deep_cnn(dataset.image_shape, dataset.num_classes)
+	#model = MyNeuralNetwork.vgg16_family_cnn(dataset.image_shape, dataset.num_classes)
+	model = load_model('Models/cnn_model_file.hdf5')
     
 	# train the model
-	trainer = Trainer(model, loss="categorical_crossentropy", optimizer=Adam(), )
+    # RMSprpの方がいいかもしれない
+	trainer = Trainer(model, loss="categorical_crossentropy", optimizer=Adam())
 	#trainer.simple_train(x_train, y_train, batch_size=500, epochs=10, validation_split=0.2)
 	trainer.train_with_data_augmentation(
-            x_train, y_train, batch_size=500, epochs=10, validation_split=0.2, 
+            x_train, y_train, batch_size=500, epochs=20, validation_split=0.2, 
             lr_scheduler=learning_rate_schedule_for_Adam)
 	
     # show result

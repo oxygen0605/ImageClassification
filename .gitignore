@@ -5,8 +5,8 @@
 build/
 __pycache__/
 
-# Logの中身はいらない
-Logs/*
+# Logはいらない
+Logs/
 
 # GTAGS系は要らない
 GPATH

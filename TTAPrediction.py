@@ -54,7 +54,7 @@ if __name__ == '__main__':
     
     batch_size = 2500
     tta_epochs = 2
-    model = load_model("./Models/model_file.hdf5") #学習率減衰を使用して学習したモデルをロード
+    model = load_model('Models/cnn_model_file.hdf5') #学習率減衰を使用して学習したモデルをロード
     
     tta = TTA()
     tta_pred = tta.predict(model, x_test, batch_size, epochs = tta_epochs)
