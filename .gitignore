@@ -3,8 +3,10 @@
 
 # bin フォルダは要らない
 build/
-Logs/
 __pycache__/
+
+# Logの中身はいらない
+Logs/*
 
 # GTAGS系は要らない
 GPATH
