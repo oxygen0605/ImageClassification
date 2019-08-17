@@ -12,11 +12,12 @@ from keras.layers import MaxPooling2D, GlobalAveragePooling2D
 from keras.layers import Dropout, Dense, BatchNormalization
 from keras.layers import Input
 from keras.layers.core import Activation, Flatten
-from keras.datasets import cifar10
 from keras.optimizers import RMSprop, Adam
-from keras.callbacks import TensorBoard, ModelCheckpoint
+from keras.callbacks import TensorBoard, ModelCheckpoint, LearningRateScheduler
 from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
+
+from cifar10_dataset import CIFAR10Dataset
 
 def cnn(input_shape, num_classes):
     
@@ -41,33 +42,48 @@ def cnn(input_shape, num_classes):
 
 	return Model(input = inputs, output = y)
 
-class CIFAR10Dataset():
-	def __init__(self):
-		self.image_shape = (32, 32, 3)
-		self.num_classes = 10
-		
-	def preprocess(self, data, label_data=False):
-		if label_data:
-			# conver class number to one-hot vector
-			data = keras.utils.to_categorical(data, self.num_classes)
-		
-		else:
-			data = data.astype("float32")
-			data /= 255 #convert the value to 0 ~ 1 scale
-			shape = (data.shape[0],) + self.image_shape
-			data = data.reshape(shape)
-			
-		return data
-	
-	def get_batch(self):
-		# x: data, y: lebel
-		(x_train, y_train), (x_test, y_test) = cifar10.load_data()
-		
-		x_train, x_test = [self.preprocess(d) for d in [x_train, x_test]]
-		y_train, y_test = [self.preprocess(d, label_data=True) for d in
-					 [y_train, y_test]]
-		
-		return x_train, y_train, x_test, y_test
+def deep_cnn(input_shape, num_classes):
+    inputs = Input(shape = (32,32,3))
+    """
+    x = Conv2D(32,(3,3),padding = "SAME",activation= "relu")(inputs)
+    x = Conv2D(32,(3,3),padding = "SAME",activation= "relu")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(32,(3,3),padding = "SAME",activation= "relu")(x)
+    x = MaxPooling2D()(x)
+    x = Dropout(0.25)(x)
+    """
+    x = Conv2D(64,(3,3),padding = "SAME",activation= "relu")(inputs)
+    x = Conv2D(64,(3,3),padding = "SAME",activation= "relu")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(64,(3,3),padding = "SAME",activation= "relu")(x)
+    x = MaxPooling2D()(x)
+    x = Dropout(0.25)(x)
+
+    x = Conv2D(128,(3,3),padding = "SAME",activation= "relu")(x)
+    x = Conv2D(128,(3,3),padding = "SAME",activation= "relu")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(128,(3,3),padding = "SAME",activation= "relu")(x)
+    x = MaxPooling2D()(x)
+    x = Dropout(0.25)(x)
+
+    x = Conv2D(256,(3,3),padding = "SAME",activation= "relu")(x)
+    x = Conv2D(256,(3,3),padding = "SAME",activation= "relu")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(256,(3,3),padding = "SAME",activation= "relu")(x)
+    x = Conv2D(256,(3,3),padding = "SAME",activation= "relu")(x)
+    x = Conv2D(256,(3,3),padding = "SAME",activation= "relu")(x)
+    x = BatchNormalization()(x)
+    x = Conv2D(512,(3,3),padding = "SAME",activation= "relu")(x)
+    x = Conv2D(512,(3,3),padding = "SAME",activation= "relu")(x)
+    x = GlobalAveragePooling2D()(x)
+
+    x = Dense(1024,activation = "relu")(x)
+    x = Dropout(0.5)(x)
+    x = Dense(1024,activation = "relu")(x)
+    x = Dropout(0.5)(x)
+    y  = Dense(10,activation = "softmax")(x)
+
+    return Model(input = inputs, output = y)
 
 class Trainer():
 	
@@ -79,6 +95,14 @@ class Trainer():
 		self.verbose = 1 # visualize progress bar: 0(OFF), 1(On), 2(On:each data) 
 		self.log_dir = os.path.join(os.path.dirname(__file__), logdir)
 		self.model_file_name = "model_file.hdf5"
+        
+	def step_decay_for_Adam(self, epoch):
+		lr = 0.001
+		if(epoch >= 100):
+			lr/=5
+		if(epoch>=140):
+			lr/=2
+		return lr
 	
 	def train_with_data_augmentation(self, x_train, y_train, batch_size, epochs, validation_split):
 		# remove previous execution
@@ -93,17 +117,27 @@ class Trainer():
             featurewise_std_normalization=False, # divide inputs by std
             samplewise_std_normalization=False,  # divide each input by its std
             zca_whitening=False,                 # apply ZCA whitening
-            rotation_range=0,                    # randomly rotate images in the range (0~180)
-            width_shift_range=0.1,               # randomly shift images horizontally
-            height_shift_range=0.1,              # randomly shift images vertically
+            rotation_range=20,                   # randomly rotate images in the range (0~180)
+            width_shift_range=0.2,               # randomly shift images horizontally
+            height_shift_range=0.2,              # randomly shift images vertically
+            zoom_range = 0.2,
+            channel_shift_range = 0.2,
             horizontal_flip=True,                # randomly flip images
             vertical_flip=False                  # randomly flip images
 		)
-		
-		#compute quantities for normalization (mean, std etc)
+        
+		"""
+        # compute quantities required for featurewise normalization
+        # (std, mean, and principal components if ZCA whitening is applied)
+        与えられたサンプルデータに基づいて，データに依存する統計量を計算します． 
+        featurewise_center，featurewise_std_normalization，
+        または，zca_whiteningが指定されたときに必要です．
+        """
 		datagen.fit(x_train)
 		
-		#split for validation data
+        # for reproducibility
+		np.random.seed(1671)
+        #split for validation data
 		indices = np.arange(x_train.shape[0])
 		np.random.shuffle(indices)
 		
@@ -115,7 +149,12 @@ class Trainer():
 		y_train, y_valid = \
             y_train[indices[:-validation_size], :], \
             y_train[indices[-validation_size:], :]
-		
+        
+        # training
+        # Pythonジェネレータ（またはSequenceのインスタンス）によりバッチ毎に生成されたデータでモデルを訓練します．
+        # 本ジェネレータは効率性のためモデルに並列して実行されます．例えば，モデルをGPUで学習させながら
+        # CPU上で画像のリアルタイムデータ拡張を行うことができるようになります．
+        
 		model_path = os.path.join(self.log_dir, self.model_file_name)
 		self._target.fit_generator(
             datagen.flow(x_train, y_train, batch_size=batch_size),
@@ -123,6 +162,7 @@ class Trainer():
             epochs=epochs,
             validation_data=(x_valid, y_valid),
             callbacks=[
+                LearningRateScheduler(self.step_decay_for_Adam),
                 TensorBoard(log_dir=self.log_dir),
                 ModelCheckpoint(model_path, save_best_only=True)
             ],
@@ -130,7 +170,7 @@ class Trainer():
             workers=4
         )
 		
-	def train(self, x_train, y_train, batch_size, epochs, validation_split):
+	def simple_train(self, x_train, y_train, batch_size, epochs, validation_split):
 		# remove previous execution
 		if os.path.exists(self.log_dir):
 			import shutil
@@ -156,14 +196,15 @@ if __name__ == '__main__':
 	x_train, y_train, x_test, y_test = dataset.get_batch()
 	
 	# create model
-	model = cnn(dataset.image_shape, dataset.num_classes)
-	
+	#model = cnn(dataset.image_shape, dataset.num_classes)
+	model = load_model('Models/model_file.hdf5')
+    
 	# train the model
 	trainer = Trainer(model, loss="categorical_crossentropy", optimizer=Adam())
 	#trainer.train(x_train, y_train, batch_size=500, epochs=10, validation_split=0.2)
 	trainer.train_with_data_augmentation(x_train, y_train, batch_size=500, epochs=10, validation_split=0.2)
 	
-	# show result
+    # show result
 	score = model.evaluate(x_test, y_test, verbose=0)
 	print("Test loss:", score[0])
 	print("Test accuracy:", score[1])
