@@ -122,6 +122,39 @@ class Trainer():
             workers=4
         )
 		
+	def train_for_tuning_test_data(self, 
+            x_train, y_train, x_test, y_test, batch_size, epochs, lr_scheduler):
+		datagen = ImageDataGenerator(
+			featurewise_center=False,            # set input mean to 0 over the dataset
+            samplewise_center=False,             # set each sample mean to 0
+            featurewise_std_normalization=False, # divide inputs by std
+            samplewise_std_normalization=False,  # divide each input by its std
+            zca_whitening=False,                 # apply ZCA whitening
+            rotation_range=20,                   # randomly rotate images in the range (0~180)
+            width_shift_range=0.2,               # randomly shift images horizontally
+            height_shift_range=0.2,              # randomly shift images vertically
+            zoom_range = 0.2,
+            channel_shift_range = 0.2,
+            horizontal_flip=True,                # randomly flip images
+            vertical_flip=False                  # randomly flip images
+		)
+        
+        # training        
+		model_path = os.path.join(self.log_dir, self.model_file_name)
+		self._target.fit_generator(
+            generator        = datagen.flow(x_train,y_train, batch_size),
+            steps_per_epoch  = x_train.shape[0] // batch_size,
+            epochs           = epochs,
+			validation_data  = ImageDataGenerator().flow(x_test,y_test, batch_size),
+			validation_steps = x_test.shape[0] // batch_size,
+            callbacks=[
+                LearningRateScheduler(lr_scheduler),
+                make_tensorboard(set_dir_name=self.log_dir),
+                ModelCheckpoint(model_path, save_best_only=True)
+            ],
+            verbose = self.verbose,
+            workers = 4
+        )
 
 class Evaluator():
     
@@ -134,19 +167,20 @@ class Evaluator():
         print("Test loss:", score[0])
         print("Test accuracy:", score[1])
     
-    def tta_evaluate(self, model, x_test, batch_size = 2500, tta_epochs = 2):
+    def tta_evaluate(self, model, x_test, label, batch_size = 2500, tta_epochs = 2):
         print("batch size (TTA): "+str(batch_size))
         print("epochs (TTA): "+str(tta_epochs))
         tta = TTA()
         tta_pred = tta.predict(model, x_test, batch_size, epochs = tta_epochs)
         print("Test accuracy(TTA): ",end = "")
-        print( accuracy_score( np.argmax(tta_pred,axis = 1) , np.argmax(y_test,axis = 1)))    
+        print( accuracy_score( np.argmax(tta_pred,axis = 1) , np.argmax(label,axis = 1)))
+        return tta_pred   
 
 
 def learning_rate_schedule_for_Adam(epoch):
 	lr = 0.001
-	if(epoch >=  5): lr = 0.0002 #100
-	if(epoch >= 15): lr = 0.0001 #140
+	if(epoch >= 100): lr = 0.0002 #100
+	if(epoch >= 140): lr = 0.0001 #140
 	return lr
 
 if __name__ == '__main__':
@@ -164,8 +198,11 @@ if __name__ == '__main__':
     # RMSprpの方がいいかもしれない
 	trainer = Trainer(model, loss="categorical_crossentropy", optimizer=Adam())
 	#trainer.simple_train(x_train, y_train, batch_size=500, epochs=10, validation_split=0.2)
-	trainer.train_with_data_augmentation(
-            x_train, y_train, batch_size=500, epochs=20, validation_split=0.2, 
+	#trainer.train_with_data_augmentation(
+    #        x_train, y_train, batch_size=500, epochs=20, validation_split=0.2, 
+    #        lr_scheduler=learning_rate_schedule_for_Adam)
+	trainer.train_for_tuning_test_data(
+            x_train, y_train, x_test, y_test, batch_size=500, epochs=20, 
             lr_scheduler=learning_rate_schedule_for_Adam)
 	
     # show result

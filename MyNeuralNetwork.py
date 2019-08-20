@@ -10,7 +10,9 @@ from keras.layers import MaxPooling2D, GlobalAveragePooling2D
 from keras.layers import Dropout, Dense, BatchNormalization
 from keras.layers import Input
 from keras.layers.core import Activation, Flatten
+from keras.applications.vgg16 import VGG16
 from keras import regularizers
+
 
 # for MNIST
 def dnn(input_shape=(28*28*1,), num_classes=10, num_hidden=128, dorp_rate=0.25):
@@ -44,21 +46,13 @@ def cnn(input_shape, num_classes):
 	
 	x = Dense(1024,activation = "relu")(x)
 	x = Dropout(0.25)(x)
-	y = Dense(10,activation = "softmax")(x)
+	y = Dense(num_classes, activation = "softmax")(x)
 
 	return Model(input = inputs, output = y)
 
 def deep_cnn(input_shape, num_classes):
     inputs = Input(shape = input_shape)
     
-    """
-    x = Conv2D(32,(3,3),padding = "SAME",activation= "relu")(inputs)
-    x = Conv2D(32,(3,3),padding = "SAME",activation= "relu")(x)
-    x = BatchNormalization()(x)
-    x = Conv2D(32,(3,3),padding = "SAME",activation= "relu")(x)
-    x = MaxPooling2D()(x)
-    x = Dropout(0.25)(x)
-    """
     x = Conv2D(64,(3,3),padding = "SAME",activation= "relu")(inputs)
     x = Conv2D(64,(3,3),padding = "SAME",activation= "relu")(x)
     x = BatchNormalization()(x)
@@ -88,12 +82,42 @@ def deep_cnn(input_shape, num_classes):
     x = Dropout(0.5)(x)
     x = Dense(1024,activation = "relu")(x)
     x = Dropout(0.5)(x)
-    y  = Dense(10,activation = "softmax")(x)
+    y  = Dense(num_classes, activation = "softmax")(x)
 
     return Model(input = inputs, output = y)
 
+def vgg16_for_cifar10(input_shape, num_classes=10):
+    
+    base_model=VGG16(weights='imagenet',include_top=False,
+                 input_tensor=Input(shape=(32,32,3)))
 
-def vgg16_family_cnn(input_shape, num_classes=10):
+    # Disassemble layers
+    layers = [l for l in base_model.layers]
+    
+    inputs = layers[0].output
+    x = layers[1].output
+    for i in range(2, 14):
+        layers[i].trainable = False
+        x = layers[i](x)
+    
+    #x = layers[11](x)
+    #x = layers[12](x)
+    #x = BatchNormalization()(x)
+    #x = layers[13](x)
+    #x = Dropout(0.25)(x)
+    
+    x = GlobalAveragePooling2D()(x)
+    x = Dense(1024,activation = "relu")(x)
+    x = BatchNormalization()(x)
+    x = Dropout(0.25)(x)
+    x = Dense(1024,activation = "relu")(x)
+    x = BatchNormalization()(x)
+    x = Dropout(0.5)(x)
+    y = Dense(10, activation = "softmax")(x)
+    
+    return Model(input = inputs, output = y)
+
+def vgg16_family_cnn(input_shape, num_classes):
     
     input_layer = Input(shape=input_shape)
     
@@ -148,7 +172,7 @@ def vgg16_family_cnn(input_shape, num_classes=10):
     return Model(inputs=input_layer, outputs=x)
 
 
-def vgg19_family_cnn(input_shape, num_classes=10):
+def vgg19_family_cnn(input_shape, num_classes):
     
     input_layer = Input(shape=input_shape)
     
