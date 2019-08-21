@@ -7,6 +7,8 @@ __pycache__/
 
 # Logはいらない
 Logs/
+# Imageはいらない
+Images/
 
 # GTAGS系は要らない
 GPATH

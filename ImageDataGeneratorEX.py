@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""
+@author: ozon0
+"""
+
 import numpy as np
 from keras.preprocessing.image import ImageDataGenerator
 
@@ -166,11 +171,11 @@ if __name__ == '__main__':
 	
 	ex_gen = ImageDataGeneratorEX(
 			   rotation_range=0,
-			   horizontal_flip=True,
+			   horizontal_flip=False,
 			   zoom_range=0.0,
 			   random_crop=None,
-			   mix_up_alpha=0.2, 
-			   cutout_mask_size=16
+			   mix_up_alpha=0.0, 
+			   cutout_mask_size=0
 		     )
 	
 	
