@@ -6,9 +6,9 @@ Created on Sat Aug 17 11:04:33 2019
 """
 from keras.models import Sequential, Model
 from keras.layers import Conv2D
-from keras.layers import MaxPooling2D, GlobalAveragePooling2D
+from keras.layers import MaxPooling2D, GlobalAveragePooling2D, AveragePooling2D
 from keras.layers import Dropout, Dense, BatchNormalization
-from keras.layers import Input
+from keras.layers import Input, add
 from keras.layers.core import Activation, Flatten
 from keras.applications.vgg16 import VGG16
 from keras import regularizers
@@ -78,10 +78,17 @@ def deep_cnn(input_shape, num_classes):
     x = Conv2D(512,(3,3),padding = "SAME",activation= "relu")(x)
     x = GlobalAveragePooling2D()(x)
 
-    x = Dense(1024,activation = "relu")(x)
+    x = Dense(1024)(x)
     x = Dropout(0.5)(x)
-    x = Dense(1024,activation = "relu")(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = Dense(1024)(x)
+	
     x = Dropout(0.5)(x)
+    x = Dense(1024)(x)
+    x = Dropout(0.5)(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
     y  = Dense(num_classes, activation = "softmax")(x)
 
     return Model(input = inputs, output = y)
@@ -228,3 +235,73 @@ def vgg19_family_cnn(input_shape, num_classes):
     x = Activation('softmax')(x)
 
     return Model(inputs=input_layer, outputs=x)
+
+
+def rescell(data, filters, kernel_size, option=False):
+    strides=(1,1)
+    if option:
+        strides=(2,2)
+    x=Conv2D(filters=filters,kernel_size=kernel_size,strides=strides,padding="same")(data)
+    x=BatchNormalization()(x)
+    x=Activation('relu')(x)
+    
+	# shortcut 
+    data=Conv2D(filters=int(x.shape[3]), kernel_size=(1,1), strides=strides, padding="same")(data)
+    
+    x=Conv2D(filters=filters,kernel_size=kernel_size,strides=(1,1),padding="same")(x)
+    x=BatchNormalization()(x)
+    x=add([x,data])
+    x=Activation('relu')(x)
+    return x
+
+def ResNet(input_shape, num_classes):
+	input=Input(shape=input_shape)
+  
+  #x = Conv2D(64,(3,3),padding = "SAME",activation= "relu")(inputs)
+	x=Conv2D(32,(7,7), padding="same", activation="relu")(input)
+	x=MaxPooling2D(pool_size=(2,2))(x)
+
+	x=rescell(x,64,(3,3))
+	x=rescell(x,64,(3,3))
+	x=rescell(x,64,(3,3))
+
+	x=rescell(x,128,(3,3),True)
+
+	x=rescell(x,128,(3,3))
+	x=rescell(x,128,(3,3))
+	x=rescell(x,128,(3,3))
+
+	x=rescell(x,256,(3,3),True)
+
+	x=rescell(x,256,(3,3))
+	x=rescell(x,256,(3,3))
+	x=rescell(x,256,(3,3))
+	x=rescell(x,256,(3,3))
+	x=rescell(x,256,(3,3))
+
+	x=rescell(x,512,(3,3),True)
+
+	x=rescell(x,512,(3,3))
+	x=rescell(x,512,(3,3))
+
+	x=AveragePooling2D(pool_size=(int(x.shape[1]),int(x.shape[2])),strides=(2,2))(x)
+
+	x=Flatten()(x)
+	x=Dense(units=num_classes,kernel_initializer="he_normal",activation="softmax")(x)
+	model=Model(inputs=input,outputs=[x])
+  
+	return model
+
+"""
+ We use SGD with a mini-batch size of 256. The learning rate starts from 0.1 
+and is divided by 10 when the error plateaus, 
+and the models are trained for up to 60 × 104 iterations.
+ We use a weight decay of 0.0001 and a momentum of 0.9.
+ We do not use dropout [14], following the practice in [16].
+
+"""
+
+
+if __name__ == '__main__':
+	#deep_cnn((32,32,3), 10).summary()
+	ResNet((32,32,3), 10).summary()
