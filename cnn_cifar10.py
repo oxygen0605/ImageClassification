@@ -93,6 +93,7 @@ class Trainer():
 		
         # for reproducibility
 		np.random.seed(1671)
+		
         #split for validation data
 		indices = np.arange(x_train.shape[0])
 		np.random.shuffle(indices)
@@ -190,9 +191,9 @@ if __name__ == '__main__':
 	x_train, y_train, x_test, y_test = dataset.get_batch()
 	
 	# create model
-	#model = MyNeuralNetwork.deep_cnn(dataset.image_shape, dataset.num_classes)
+	model = MyNeuralNetwork.deep_cnn(dataset.image_shape, dataset.num_classes)
 	#model = MyNeuralNetwork.vgg16_family_cnn(dataset.image_shape, dataset.num_classes)
-	model = load_model('Models/cnn_model_file.hdf5')
+	#model = load_model('Models/cnn_model_file.hdf5')
     
 	# train the model
     # RMSprpの方がいいかもしれない
