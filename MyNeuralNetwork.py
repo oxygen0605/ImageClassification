@@ -236,29 +236,82 @@ def vgg19_family_cnn(input_shape, num_classes):
 
     return Model(inputs=input_layer, outputs=x)
 
-
+# this is a part of ResNet and WideResNet.
 def rescell(data, filters, kernel_size, option=False):
+    
     strides=(1,1)
     if option:
         strides=(2,2)
-    x=Conv2D(filters=filters,kernel_size=kernel_size,strides=strides,padding="same")(data)
+    
+    x=Conv2D(filters=filters,
+			 kernel_size=kernel_size,
+			 strides=strides,
+			 padding="same",
+			 kernel_initializer='he_normal')(data)
     x=BatchNormalization()(x)
     x=Activation('relu')(x)
-    
-	# shortcut 
-    data=Conv2D(filters=int(x.shape[3]), kernel_size=(1,1), strides=strides, padding="same")(data)
-    
-    x=Conv2D(filters=filters,kernel_size=kernel_size,strides=(1,1),padding="same")(x)
+
+    # shortcut 
+    data=Conv2D(filters=int(x.shape[3]), 
+				kernel_size=(1,1), 
+				strides=strides, 
+				padding="same",
+				kernel_initializer='he_normal')(data)
+
+    x=Conv2D(filters=filters,
+			 kernel_size=kernel_size,
+			 strides=(1,1),
+			 padding="same",
+			 kernel_initializer='he_normal')(x)
     x=BatchNormalization()(x)
+
+    # connnection
     x=add([x,data])
+
     x=Activation('relu')(x)
+
+	
     return x
 
-def ResNet(input_shape, num_classes):
+# this is a part of ResNet and WideResNet.
+def ResBlock(data, filters, kernel_size, option=False):
+    
+    strides=(1,1)
+    if option:
+        strides=(2,2)
+    
+    x=BatchNormalization()(data)
+    x=Activation('relu')(x)
+    x=Conv2D(filters=filters,
+			 kernel_size=kernel_size,
+			 strides=strides,
+			 padding="same",
+			 kernel_initializer='he_normal')(x)
+
+    # shortcut 
+    data=Conv2D(filters=int(x.shape[3]),
+				kernel_size=(1,1),
+				strides=strides,
+				padding="same",
+				kernel_initializer='he_normal')(data)
+
+    x=BatchNormalization()(x)
+    x=Activation('relu')(x)
+    x=Dropout(0.3)(x)
+    x=Conv2D(filters=filters,
+			 kernel_size=kernel_size,
+			 strides=(1,1),
+			 padding="same",
+			 kernel_initializer='he_normal')(x)
+
+	# connection
+    x=add([x,data])
+    return x
+
+def ResNet34(input_shape, num_classes):
 	input=Input(shape=input_shape)
   
-  #x = Conv2D(64,(3,3),padding = "SAME",activation= "relu")(inputs)
-	x=Conv2D(32,(7,7), padding="same", activation="relu")(input)
+	x=Conv2D(32,(7,7), padding="same", activation="relu",kernel_initializer='he_normal')(input)
 	x=MaxPooling2D(pool_size=(2,2))(x)
 
 	x=rescell(x,64,(3,3))
@@ -301,7 +354,41 @@ and the models are trained for up to 60 × 104 iterations.
 
 """
 
+# Define WRN-28-10.
+def WideResNet(input_shape, num_classes):
+	input=Input(shape=input_shape)
 
+	k = 10 # 論文によれば、CIFAR-10に最適な値は10。
+	n= 4   # 論文によれば、CIFAR-10に最適な値は4。
+	       # WRN-28-10の28はconvの数で、「1（入り口のconv）+ 3 * n * 2 + 3（ショートカットの中のconv？）」みたい。
+		   # n = 4 で28。
+	
+	#conv1
+	x=Conv2D(16,(3,3), padding="same", activation="relu",kernel_initializer='he_normal')(input)
+	
+  # conv2
+	for i in range(2*n):
+		x=ResBlock(x,16*k,(3,3))
+	
+  #conv3
+	x=ResBlock(x,32*k,(3,3),True)
+	for i in range(2*n-1):
+		x=ResBlock(x,32*k,(3,3))
+	
+  #conv4
+	x=ResBlock(x,64*k,(3,3),True)
+	for i in range(2*n-1):
+		x=ResBlock(x,64*k,(3,3))
+	
+	x=BatchNormalization()(x)
+	x=Activation('relu')(x)
+	x=GlobalAveragePooling2D()(x)
+	
+	x=Dense(units=num_classes,kernel_initializer="he_normal",activation="softmax")(x)
+	model=Model(inputs=input,outputs=[x])
+  
+	return model
+	
 if __name__ == '__main__':
 	#deep_cnn((32,32,3), 10).summary()
 	ResNet((32,32,3), 10).summary()
