@@ -391,4 +391,4 @@ def WideResNet(input_shape, num_classes):
 	
 if __name__ == '__main__':
 	#deep_cnn((32,32,3), 10).summary()
-	ResNet((32,32,3), 10).summary()
+	ResNet34((32,32,3), 10).summary()

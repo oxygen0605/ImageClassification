@@ -7,6 +7,7 @@ import keras
 from keras.datasets import cifar10
 from keras.preprocessing.image import load_img, save_img, img_to_array, array_to_img
 import glob
+import numpy as np
 
 class CIFAR10Dataset():
 	def __init__(self):
@@ -26,11 +27,26 @@ class CIFAR10Dataset():
 			
 		return data
 	
-	def get_batch(self):
+	def get_batch(self, subtract_pixel_mean=True):
 		# x: data, y: lebel
 		(x_train, y_train), (x_test, y_test) = cifar10.load_data()
 		
-		x_train, x_test = [self.preprocess(d) for d in [x_train, x_test]]
+		# Normalize data.
+		x_train = x_train.astype('float32') / 255
+		x_test = x_test.astype('float32') / 255
+    
+		if subtract_pixel_mean:
+			x_train_mean = np.mean(x_train, axis=0)
+			x_train -= x_train_mean
+			x_test -= x_train_mean
+
+		train_shape = (x_train.shape[0],) + self.image_shape
+		x_train = x_train.reshape(train_shape)
+    
+		test_shape = (x_test.shape[0],) + self.image_shape
+		x_test = x_test.reshape(test_shape)
+		
+		#x_train, x_test = [self.preprocess(d) for d in [x_train, x_test]]
 		y_train, y_test = [self.preprocess(d, label_data=True) for d in
 					 [y_train, y_test]]
 		
@@ -60,7 +76,8 @@ class CIFAR10Dataset():
 		
 
 if __name__ == '__main__':
-	(x_train, y_train), (x_test, y_test) = cifar10.load_data()
+	#(x_train, y_train), (x_test, y_test) = cifar10.load_data()
 	dataset = CIFAR10Dataset()
+	x_train, y_train, x_test, y_test = dataset.get_batch()
 	#dataset.save_image(x_test, y_test,save_dir='./Images/')
 	x_train
